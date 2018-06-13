@@ -160,6 +160,7 @@ def process_type(type_input):
 
 	process_state = ("", decl_name[0], decl_name[1], [], [])
 
+	done_first = 0
 
 	while len(process_state[1]) > 0  or len(process_state[2]) > 0:
 		process_state = identify_limits(process_state)	
@@ -167,14 +168,19 @@ def process_type(type_input):
 		desc = process_state[0] 
 		upper = process_state[4]
 		lower = process_state[3]
-		
+				
+
 		#Process right if exists
 		while len(upper) > 0:
 			upper, character = pull_right(upper)
+			
+			is_first = not done_first
+			done_first = 1	
+		
 			#switch for right
 			if character == None:
 				break
-			if is_identifier(character):
+			if is_identifier(character) and is_first:
 				desc += character[1] + " as "
 			elif character == '[':
 				upper, character = pull_right(upper)
@@ -196,8 +202,6 @@ def process_type(type_input):
 				sub_type = "function ( " 
 				if len(arguments) == 0:
 					pass
-				elif len(arguments) == 1 and len(arguments[0]) == 1 and is_basetype(arguments[0][0]) and arguments[0][0][1] == "void":
-					sub_type += "void "
 				else:
 					for i in range(len(arguments)):
 						arg = arguments[i]
