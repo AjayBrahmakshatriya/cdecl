@@ -214,7 +214,10 @@ def process_type(type_input):
 				pass
 			else:
 				fail(character)
+	
+
 		
+	
 		#Process left if exists
 		while len(lower) > 0:
 			lower, character = pull_left(lower)
@@ -228,10 +231,11 @@ def process_type(type_input):
 					desc += character[1]
 				else:
 					fail(character)
-			
 
 		process_state = (desc, process_state[1], process_state[2], [], [])
 	
+	if not is_basetype(character):
+		fail_with("Syntax error: No type name in declaration " + str(type_input))	
 
 	return process_state[0]
 
