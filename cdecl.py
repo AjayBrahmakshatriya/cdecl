@@ -10,18 +10,23 @@ def fail_with(message):
 	exit(-1)
 
 def fail(character):
-	fail_with("Syntax error: Invalid character - " + character)
+	print_character = ""
+	if isinstance(character, tuple):
+		print_character = character[1]
+	else:
+		print_character = character
+	fail_with("Syntax error: Invalid character - " + print_character)
 
 def get_collect(collect):
 	if collect in base_types:
-			return 'T'
+			return ('T', collect)
 	elif collect[0] not in decimal_constants:
-		return 'I'
+		return ('I', collect)
 	else:
 		for j in collect:
 			if j not in decimal_constants:
 				fail(j)
-		return 'N'
+		return ('N', collect)
 
 def tokenize(type_input):
 	tokens = []
@@ -39,37 +44,42 @@ def tokenize(type_input):
 		tokens += [get_collect(collect)]
 	return tokens
 
+def is_numeral(token):
+	if isinstance(token , tuple) and token[0] == 'N':
+		return True
+	return False
+
+def is_basetype(token):
+	if isinstance(token , tuple) and token[0] == 'T':
+		return True
+	return False
+
+
+def is_identifier(token):
+	if isinstance(token , tuple) and token[0] == 'I':
+		return True
+	return False
+
+
 def identify_decl_name(type_input):
-	name_collected = ""
 	start_pos = -1
 	end_post = -1
-	for pos in range(len(type_input)):
-		character = type_input[pos]
+	for i in range(len(type_input)):
+		if is_identifier(type_input[i]):
+			start_pos = i 
+			end_pos = i + 1
+			name_collected = type_input[i][1]
+			break
 
-		if character in special_tokens or character in ignore_tokens:
-			if len(name_collected) != 0:
-				if name_collected not in base_types and (name_collected[0] not in decimal_constants):
-					break
-				else:
-					name_collected = ""
-			start_pos = pos + 1
-		else:
-			name_collected += character
-			end_pos = pos + 1
-	if name_collected != "" and name_collected not in base_types and (name_collected[0] not in decimal_constants):
-		pass
-	else:
-		name_collected = ""
-
- 	if name_collected == "":
-		fail_with("Syntax error: Identifier not found in " + type_input)
+ 	if start_pos == -1:
+		fail_with("Syntax error: Identifier not found in " + str(type_input))
 
 	return (name_collected, type_input[:start_pos], type_input[end_pos:])
 
 def identify_limits(state):
 	bracket_count = 1
-	upper = ""
-	lower = ""
+	upper = []
+	lower = []
 	for i in state[2]:
 		if i == '(':
 			bracket_count += 1
@@ -77,7 +87,7 @@ def identify_limits(state):
 			bracket_count -= 1
 		if bracket_count == 0:
 			break
-		upper += i
+		upper += [i]
 	bracket_count = -1
 	 
 	for i in reversed(state[1]):
@@ -87,7 +97,7 @@ def identify_limits(state):
 			bracket_count -= 1
 		if bracket_count == 0:
 			break
-		lower = i + lower
+		lower = [i] + lower
 	state = (state[0], state[1][:-len(lower)-1], state[2][len(upper)+1:], lower, upper)
 	return state
 		
@@ -95,29 +105,28 @@ def identify_limits(state):
 
 
 def pull_right(upper):
-	character = ' '
-	while character == ' ':
-		if upper == "":
-			return (upper, None)
-		character = upper[0]
-		upper = upper[1:]
+	if len(upper) == 0:
+		return (upper, None)
+	character = upper[0]
+	upper = upper[1:]
 	return upper, character
 
 
 def pull_left(lower):
-	character = ' '
-	while character == ' ':
-		if lower == "":
-			return (lower, None)
-		character = lower[-1]
-		lower = lower[:-1]
+	if len(lower) == 0:
+		return (lower, None)
+	character = lower[-1]
+	lower = lower[:-1]
 	return lower, character
 
 def extract_arguments(upper):
 	arguments=[]
-	curr_argument = ""
+	curr_argument = []
 	bracket_count = 1
 	length_cut = 0
+	
+	#print upper	
+
 	for i in upper:
 		length_cut += 1
 		if i == '(':
@@ -126,15 +135,18 @@ def extract_arguments(upper):
 			bracket_count -=1
 		elif i == ',':
 			arguments += [curr_argument]
-			curr_argument = ""
+			curr_argument = []
 			continue
 		elif i == ';':
 			fail(i)
 		if bracket_count == 0:
 			break
-		curr_argument += i
+		curr_argument += [i]
 
-	if not (curr_argument.strip() == "" and len(arguments) == 0):
+
+	if not (len(curr_argument) != 0 and len(arguments) == 0):
+		pass
+	else:
 		arguments += [curr_argument]
 		
 
@@ -148,7 +160,7 @@ def process_type(type_input):
 
 	#print decl_name
 
-	process_state = (decl_name[0] + " as ", decl_name[1], decl_name[2], "", "")
+	process_state = (decl_name[0] + " as ", decl_name[1], decl_name[2], [], [])
 
 
 	while len(process_state[1]) > 0  or len(process_state[2]) > 0:
@@ -167,16 +179,25 @@ def process_type(type_input):
 			
 			if character == '[':
 				upper, character = pull_right(upper)
-				if character != ']':
+				if character == ']':
+					desc += "array of "
+				elif is_numeral(character):
+					number = character[1]
+					upper, character = pull_right(upper)
+					if character == ']':
+						desc += "array [ " + number + " ] of "
+					else:
+						fail(character)
+				else:
 					fail(character)
-				desc += "array of "
 			elif character == '(':
 				upper, arguments = extract_arguments(upper)
+				#print arguments		
 				
 				sub_type = "function ( " 
 				if len(arguments) == 0:
 					pass
-				elif len(arguments) == 1 and arguments[0].strip() == "void":
+				elif len(arguments) == 1 and len(arguments[0]) == 1 and is_basetype(arguments[0][0]) and arguments[0][0][1] == "void":
 					sub_type += "void "
 				else:
 					for i in range(len(arguments)):
@@ -200,15 +221,13 @@ def process_type(type_input):
 			if character == '*':
 				desc += "pointer to "
 			else:
-				character = lower + character
-				lower = ""
-				if character.strip() in base_types and process_state[1] == "" and process_state[2] == "":
-					desc += character.strip()
+				if is_basetype(character) and len(process_state[1]) == 0 and len(process_state[2]) == 0 and len(lower) == 0:
+					desc += character[1]
 				else:
 					fail(character)
 			
 
-		process_state = (desc, process_state[1], process_state[2], "", "")
+		process_state = (desc, process_state[1], process_state[2], [], [])
 	
 
 	return process_state[0]
@@ -220,8 +239,8 @@ def main():
 
 	#process a single input
 	input_type = raw_input()
-	print tokenize(input_type)
-	print "declare " + process_type(input_type)
+	tokens = tokenize(input_type)
+	print "declare " + process_type(tokens)
 
 
 
