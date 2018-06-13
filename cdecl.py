@@ -1,5 +1,3 @@
-
-
 base_types = ["int", "float", "double", "void", "char"]
 special_tokens = ['*', '[', ']', '(', ')', ',']
 ignore_tokens = [' ', ';']
@@ -10,6 +8,7 @@ def fail_with(message):
 	exit(-1)
 
 def fail(character):
+	print character
 	print_character = ""
 	if isinstance(character, tuple):
 		print_character = character[1]
@@ -61,20 +60,23 @@ def is_identifier(token):
 	return False
 
 
-def identify_decl_name(type_input):
+def identify_start(type_input):
 	start_pos = -1
-	end_post = -1
-	for i in range(len(type_input)):
-		if is_identifier(type_input[i]):
-			start_pos = i 
-			end_pos = i + 1
-			name_collected = type_input[i][1]
+	end_pos = -1
+	for i in range(len(type_input)):	
+		if is_identifier(type_input[i]) or type_input[i] == '[' or type_input[i] == ')':
+			start_pos = i
+			end_pos = i
 			break
 
- 	if start_pos == -1:
-		fail_with("Syntax error: Identifier not found in " + str(type_input))
+	if start_pos == -1:
+		start_pos = len(type_input)
+		end_pos = len(type_input)
+ 	#if start_pos == -1:
+	#	fail_with("Syntax error: Cannot figure type in " + str(type_input))
 
-	return (name_collected, type_input[:start_pos], type_input[end_pos:])
+
+	return (type_input[:start_pos], type_input[end_pos:])
 
 def identify_limits(state):
 	bracket_count = 1
@@ -133,7 +135,7 @@ def extract_arguments(upper):
 			bracket_count +=1 
 		elif i == ')':
 			bracket_count -=1
-		elif i == ',':
+		elif i == ',' and bracket_count == 1:
 			arguments += [curr_argument]
 			curr_argument = []
 			continue
@@ -144,9 +146,7 @@ def extract_arguments(upper):
 		curr_argument += [i]
 
 
-	if not (len(curr_argument) != 0 and len(arguments) == 0):
-		pass
-	else:
+	if len(curr_argument) != 0:
 		arguments += [curr_argument]
 		
 
@@ -156,11 +156,9 @@ def extract_arguments(upper):
 
 def process_type(type_input):
 	#identify DECL_NAME
-	decl_name = identify_decl_name(type_input)
+	decl_name = identify_start(type_input)
 
-	#print decl_name
-
-	process_state = (decl_name[0] + " as ", decl_name[1], decl_name[2], [], [])
+	process_state = ("", decl_name[0], decl_name[1], [], [])
 
 
 	while len(process_state[1]) > 0  or len(process_state[2]) > 0:
@@ -176,8 +174,9 @@ def process_type(type_input):
 			#switch for right
 			if character == None:
 				break
-			
-			if character == '[':
+			if is_identifier(character):
+				desc += character[1] + " as "
+			elif character == '[':
 				upper, character = pull_right(upper)
 				if character == ']':
 					desc += "array of "
