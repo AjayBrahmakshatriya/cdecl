@@ -1,0 +1,6 @@
+char *  (*(*  bar)[5])(int )
+char (*(*x())[5])()
+int (*(*foo)( void *))[3]
+char **  *  x
+char (*(*x[3])())[5]
+
