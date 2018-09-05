@@ -1,4 +1,4 @@
 install: true
-
+language: generic
 script: ./run_tests.sh
 
